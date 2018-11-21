@@ -9,7 +9,7 @@ from datetime import datetime
 id_a = 1
 
 # Import credentials
-credentials_json = open('credentials.json', 'r')
+credentials_json = open('spln_elastic/data/credentials.json', 'r')
 credentials = json.load(credentials_json)
 credentials_json.close()
 
