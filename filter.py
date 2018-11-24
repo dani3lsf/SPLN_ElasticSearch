@@ -26,30 +26,33 @@ class SimpleCompleter:
     def __init__(self):
         pass
 
-    def complete(self, text, state):
+    def complete(self, curr_word, state):
         response = None
         
         if state == 0:
             # This is the first time for this text,
             # so build a match list.
             prefix = readline.get_line_buffer()
+
             if prefix:
                 
-                res = match_as_you_type(prefix, field, idx, doc_t)
+                res = spln_elastic.match_as_you_type(prefix, curr_word, field, idx, doc_t, es)
                 self.matches = res
 
                 logging.debug('%s matches: %s',
-                              repr(text), self.matches)
+                              repr(curr_word), self.matches)
             else:
                 logging.debug('(empty input) matches: %s',
                               self.matches)
+
+        # Return the state'th item from the match list,
+        # if we have that many.
         try:
             response = self.matches[state]
         except IndexError:
             response = None
-        
-        logging.debug('complete(%s, %s) => %s', repr(text), state,
-                                                repr(response))
+        logging.debug('complete(%s, %s) => %s',
+                      repr(curr_word), state, repr(response))
         return response
 
 def redirect_output(line):
@@ -70,12 +73,14 @@ def input_loop():
     while line != 'stop':
         line = input('Prompt ("stop" to quit): ')
         line, fd = redirect_output(line)
-        output = match(line, field, True, idx, doc_t)
-        print(output, file=fd)
+        execute_query(line, '-h' in ops, '-c' in ops, '-e' in ops, '-s' in ops, '-S' in ops, fd)
+        #output = spln_elastic.match(line, field, True, idx, doc_t, es)
+        #print(output, file=fd)
 
-def execute_query(pattern, highlight, cf, exact, sqs, qs):
+def execute_query(pattern, highlight, cf, exact, sqs, qs, print_to):
     global field, idx, doc_t
     
+    #multi-field queries
     if isinstance(field, list):
         if sqs:
             res = spln_elastic.simple_query_string(pattern, field, idx, doc_t, es)
@@ -89,25 +94,25 @@ def execute_query(pattern, highlight, cf, exact, sqs, qs):
         res = spln_elastic.match(pattern, field, exact, idx, doc_t, es)
 
     if '-n' in ops:
-        print_to_terminal(res['hits']['hits'], int(ops['-n']))
+        pretty_print(res['hits']['hits'], int(ops['-n']), print_to)
     else:
-        print_to_terminal(res['hits']['hits'], int(res['hits']['total']))
+        pretty_print(res['hits']['hits'], int(res['hits']['total']), print_to)
 
 
-def print_to_terminal(hits, times):
+def pretty_print(hits, times, print_to):
     for doc in hits:
         if times > 0:
-            print("=" * 79)
+            print("=" * 79, file=print_to)
             json_file = json.dumps(doc['_source'])
             json_f = json.loads(json_file)
             for field, content in json_f.items():
-                print(field.upper() + ": " + content)
+                print(field.upper() + ": " + content, file=print_to)
             times -= 1
 
 
 #------------------------------------------------------------------------------
 
-ops, args = getopt.getopt(sys.argv[1:], 'bp:f:i:hn:ed:c:')
+ops, args = getopt.getopt(sys.argv[1:], 'bp:f:i:hn:ed:c:', ['help'])
 ops = dict(ops)
 
 if os.path.isfile("./credentials.json"):
@@ -128,7 +133,7 @@ if '-d' in ops:
 if '-b' in ops:
     print("Loading files...")
     print(args)
-    load_documents(idx, doc_t, args, es)
+    spln_elastic.load_documents(idx, doc_t, args, es)
 else:
     if '-f' in ops:
         field = ops['-f']
@@ -141,4 +146,4 @@ else:
     else:
         pattern = ops['-p']
 
-        execute_query(pattern, '-h' in ops, '-c' in ops, '-e' in ops, '-s' in ops, '-S' in ops)
+        execute_query(pattern, '-h' in ops, '-c' in ops, '-e' in ops, '-s' in ops, '-S' in ops, sys.stdout)

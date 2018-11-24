@@ -3,7 +3,7 @@
 
 import json
 from elasticsearch import Elasticsearch
-import os, sys
+import os, sys, re
 
 def load_documents(idx, dtype, files, es):
 
@@ -31,20 +31,33 @@ def match(content, field, exact, idx, dtype, es):
         }
     })
 
-def match_as_you_type(content, field, idx, dtype, es):
+def match_as_you_type(prefix, curr_word, field, idx, dtype, es):
     lst = []
 
     res = es.search(index = idx, doc_type = dtype, body = {
         "query": {
             "match_phrase_prefix": {
-                field: content
+                field : {
+                    "query" : prefix,
+                    "max_expansions" : 1000
+                }
+            }
+        },
+        "highlight" : {
+            "fields" : {
+               field : {}
             }
         }
-    })
-
+    })  
+    
     for doc in res['hits']['hits']:
         match = doc['highlight'][field]
-        match = re.sub(r'.*(<em>.*</em>)*<em>(.*)</em>(.*)', r'\2\3', match[0])
+        #Condição para o caso em que já se escreveu a palavra que fez match completa
+        if( curr_word == "" ):
+            #print(match[0])
+            match = re.sub(r'.*<em>(.*)</em>\s*(.*)', r'\2', match[0])
+        else:
+            match = re.sub(r'.*<em>(.*)</em>(.*)', r'\1\2', match[0])
         lst.append(match)
 
     return lst
