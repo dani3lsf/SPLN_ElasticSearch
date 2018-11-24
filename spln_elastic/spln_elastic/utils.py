@@ -78,7 +78,7 @@ def common_terms(content, field, idx, dtype, cutoff_frequency, es):
             "common" : {
                 field : {
                     "query": content,
-                    "cutoff_frequency": cutoff_frequency,
+                    "cutoff_frequency": cutoff_frequency
                 }
             }
         }

@@ -4,6 +4,7 @@
 import os, getopt, sys, re, logging
 import spln_elastic, json
 from elasticsearch import Elasticsearch
+import subprocess
 
 try:
     import gnureadline as readline
@@ -17,9 +18,8 @@ logging.basicConfig(
     level = logging.DEBUG,
 )
 
-field = 'texto'
-idx = 'news'
-doc_t = 'test-type'
+idx = 'default_idx'
+doc_t = 'default_type'
 
 class SimpleCompleter:
 
@@ -68,29 +68,34 @@ def redirect_output(line):
     else:
         return line, sys.stdout
 
-def input_loop():
-    line = ''
-    while line != 'stop':
-        line = input('Prompt ("stop" to quit): ')
-        line, fd = redirect_output(line)
-        execute_query(line, '-h' in ops, '-c' in ops, '-e' in ops, '-s' in ops, '-S' in ops, fd)
-        #output = spln_elastic.match(line, field, True, idx, doc_t, es)
-        #print(output, file=fd)
+def print_manual():
+    return subprocess.call(['more','manual.txt'])
 
-def execute_query(pattern, highlight, cf, exact, sqs, qs, print_to):
+def input_loop(query_type):
+    line = ''
+    while line != '\stop':
+        line = input('Prompt ("\stop" to quit): ')
+        line, fd = redirect_output(line)
+        if(line != '\stop'):
+            execute_query(line, query_type, fd)
+
+def execute_query(pattern, query_type, print_to):
     global field, idx, doc_t
-    
-    #multi-field queries
-    if isinstance(field, list):
-        if sqs:
-            res = spln_elastic.simple_query_string(pattern, field, idx, doc_t, es)
-        elif qs:
-            res = spln_elastic.query_string(pattern, field, idx, doc_t, es)
-        else:
-            res = spln_elastic.multi_match(pattern, field, idx, doc_t, es)
-    elif cf:
-        res = spln_elastic.common_terms(pattern, field, idx, doc_t, ops['-c'], es)
+
+    if query_type == "simple_query_string":
+        res = spln_elastic.simple_query_string(pattern, field, idx, doc_t, es)
+    elif query_type == "query_string":
+        res = spln_elastic.query_string(pattern, field, idx, doc_t, es)
+    elif query_type == "common_terms":
+        cutoff = ops['-c']
+        res = spln_elastic.common_terms(pattern, field, idx, doc_t, cutoff, es)
+    elif query_type == "multi_match":
+        res = spln_elastic.multi_match(pattern, field, idx, doc_t, es)
+    elif query_type == "exact_match":
+        exact = True
+        res = spln_elastic.match(pattern, field, exact, idx, doc_t, es)
     else:
+        exact = False
         res = spln_elastic.match(pattern, field, exact, idx, doc_t, es)
 
     if '-n' in ops:
@@ -109,10 +114,22 @@ def pretty_print(hits, times, print_to):
                 print(field.upper() + ": " + content, file=print_to)
             times -= 1
 
+def get_query_type():
+    if('-s' in ops): return 'simple_query_string'
+    elif('-S' in ops): return 'query_string'
+    elif('-c' in ops): return 'common_terms'
+    elif('-e' in ops): return 'exact_match'
+    else:
+        if isinstance(field, list):
+            return 'multi_match'
+        else:
+            return 'match'
+
+    
 
 #------------------------------------------------------------------------------
 
-ops, args = getopt.getopt(sys.argv[1:], 'bp:f:i:hn:ed:c:', ['help'])
+ops, args = getopt.getopt(sys.argv[1:], 'bp:f:i:n:ed:c:sS', ['help'])
 ops = dict(ops)
 
 if os.path.isfile("./credentials.json"):
@@ -127,23 +144,39 @@ else:
 
 if '-i' in ops:
     idx = ops['-i']
+
 if '-d' in ops:
     doc_t = ops['-d']
 
-if '-b' in ops:
-    print("Loading files...")
-    print(args)
-    spln_elastic.load_documents(idx, doc_t, args, es)
+mutual_exclusive = [i for i in ['-b','-e', '-s', '-S', '-c','--help'] if i in ops]
+if len(mutual_exclusive) > 1:
+    print("As opções " + str(mutual_exclusive) + " são mutuamente exclusivas.")
+    print("Utilize \'--help' para obter mais informação.")
 else:
-    if '-f' in ops:
-        field = ops['-f']
-
-    if '-p' not in ops:
-        # In case no pattern is supplied, it is assumed the user wants the command prompt
-        readline.set_completer(SimpleCompleter().complete)
-        readline.parse_and_bind('tab: complete')
-        input_loop()
+    if '-b' in ops:
+        print("Loading files...")
+        spln_elastic.load_documents(idx, doc_t, args, es)
+    elif '--help' in ops:
+        print_manual()
     else:
-        pattern = ops['-p']
+        if '-f' in ops:
+            field = ops['-f']
+            if re.search(r'\s*,\s*', field):
+                field = re.split(r'\s*,\s*', field)
+            if (('-s' in ops) or ('-S' in ops)) and not isinstance(field,list):
+                field = [field]
 
-        execute_query(pattern, '-h' in ops, '-c' in ops, '-e' in ops, '-s' in ops, '-S' in ops, sys.stdout)
+        else:
+            sys.exit("Opção \'-f\' (field) não especificada.")
+
+        query_type = get_query_type()
+
+        if '-p' not in ops:
+            # In case no pattern is supplied, it is assumed the user wants the command prompt
+            readline.set_completer(SimpleCompleter().complete)
+            readline.parse_and_bind('tab: complete')
+            input_loop(query_type)
+        else:
+            pattern = ops['-p']
+            execute_query(pattern, query_type, sys.stdout)
+            #execute_query(pattern, '-c' in ops, '-e' in ops, '-s' in ops, '-S' in ops, sys.stdout)

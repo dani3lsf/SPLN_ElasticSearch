@@ -1,0 +1,53 @@
+[filter]                      General Commands Manual                     
+
+NAME
+       filter - full text document search
+
+DESCRIPTION
+
+       Filter allows you to load documents into an Elasticsearch cluster/node
+       with a given index and document type. If no index or document type is 
+       specified, default values are used.
+       
+       As its main use case, allows full text searches, retrieving documents  
+       based on a given query. For that purpose, Elasticsearch API is used.
+
+OPTIONS
+   Generic Program Information
+       --help Output a usage message and exit.
+
+   Document Indexing
+       -b FILES (-i INDEX -d DOC_TYPE)
+              Upload documents (use with -i and -d options for faster searches)
+
+   Searching Options
+       -f FIELD(S)
+              Used for selecting the searching field (or fields, in case of -s, 
+              -S or default query)
+        
+   Query Type Selection
+       -c CUTOFF
+              Common terms query. Gives more preference to uncommon words and 
+              uses a CUTOFF frequency.
+        
+       -e
+              Used for matching exact phrases or word proximity matches. Uses 
+              the match_phrase Elasticsearch API query.
+
+       -S
+              Uses the query_string Elasticsearch API query, allowing you to
+              specify AND|OR|NOT conditions and multi-field search within a si-
+              ngle query string. 
+
+       -s
+              Uses the simple_query_string Elasticsearch API query, allowing op-
+              erators as ['|','+','-']. Discards invalid parts of the query.
+       
+       <No query type>
+              If none of the above flags is used, depending on the number of se-
+              lected fields, default match or multi_match query is used.
+
+   Output Control
+       -n ITEMS
+              Used to limit the number of documents to retrieve.
+          
