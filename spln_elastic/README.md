@@ -1,1 +1,0 @@
-# SPLN_ElasticSearch

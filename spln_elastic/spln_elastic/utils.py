@@ -3,31 +3,26 @@
 
 import json
 from elasticsearch import Elasticsearch
-from datetime import datetime
- 
+import os, sys
 
-def load(idx, dtype, file, es):
-    # Init ids for documents
-    id_a = 1
+def load_documents(idx, dtype, files, es):
 
     # Create an index (ignore if it already exists)
     es.indices.create(index = idx, ignore = 400)
 
-    with open(file) as f:
-	    data = f.readlines()
-
-    for line in data:
-        es.index(index = idx, doc_type = dtype, id = id_a, body = line)
-        id_a += 1
+    for file_o in files:
+        with open(file_o) as f:
+            data = json.load(f)
+            es.index(index = idx, doc_type = dtype, body = data)
 
 
-def match(content, field, exact, idx, dtype):
+def match(content, field, exact, idx, dtype, es):
 
     if exact:
         query = "match_phrase"
     else:
         query = "match"
-    
+
     return es.search(index = idx, doc_type = dtype, body = {
         "query": {
             query: {
@@ -36,39 +31,62 @@ def match(content, field, exact, idx, dtype):
         }
     })
 
-def match_as_you_type(content, field, idx, dtype):
-    return es.search(index = idx, doc_type = dtype, body = {
+def match_as_you_type(content, field, idx, dtype, es):
+    lst = []
+
+    res = es.search(index = idx, doc_type = dtype, body = {
         "query": {
             "match_phrase_prefix": {
                 field: content
             }
-        },
-        "highlight" : {
-            "pre_tags": ["\033[92m"],
-            "post_tags" : ["\033[0m"],
-            "fields" : {
-                field : {}
+        }
+    })
+
+    for doc in res['hits']['hits']:
+        match = doc['highlight'][field]
+        match = re.sub(r'.*(<em>.*</em>)*<em>(.*)</em>(.*)', r'\2\3', match[0])
+        lst.append(match)
+
+    return lst
+
+def multi_match(content, fields, idx, dtype, es):
+    return es.search(index = idx, doc_type = dtype, body = {
+        "query": {
+            "multi_match" : {
+                "query" : content,
+                "fields" : fields
             }
         }
     })
 
+def common_terms(content, field, idx, dtype, cutoff_frequency, es):
+    return es.search(index = idx, doc_type = dtype, body = {
+        "query": {
+            "common" : {
+                field : {
+                    "query": content,
+                    "cutoff_frequency": cutoff_frequency,
+                }
+            }
+        }
+    })
 
+def query_string(content, fields, idx, dtype, es):
+    return es.search(index = idx, doc_type = dtype, body = {
+        "query": {
+            "query_string" : {
+                "query" : content,
+                "fields" : fields
+            }
+        }
+    })
 
-
-credentials_json = open('../data/credentials.json', 'r')
-credentials = json.load(credentials_json)
-credentials_json.close()
-
-# Setup elasticsearch
-es = Elasticsearch(credentials['es_endpoint'], 
-    http_auth = (credentials['username'], credentials['password']))
-
-#load('news', 'test-type', '../data/')
-
-res = match_as_you_type("CARBO Ceramics", "title", "news", "test-type")
-print("%d documents found" % res['hits']['total'])
-
-print("\n===\n")
-print(res)
-#for doc in res['hits']['hits']:
- #   print("%s) %s" % (doc['_id'], doc['_source']['content']))
+def simple_query_string(content, fields, idx, dtype, es):
+    return es.search(index = idx, doc_type = dtype, body = {
+        "query": {
+            "simple_query_string" : {
+                "query" : content,
+                "fields" : fields
+            }
+        }
+    })
