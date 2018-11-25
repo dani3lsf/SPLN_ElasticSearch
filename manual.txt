@@ -13,39 +13,43 @@ DESCRIPTION
        based on a given query. For that purpose, Elasticsearch API is used.
 
 OPTIONS
-   Generic Program Information
-       --help Output a usage message and exit.
+   Generic Program Options
+       --help 
+              Used to access the program usage manual.
+
+       -i INDEX
+              Allows you to define the index (INDEX) to be used in searches or document indexing. In the first case is mandatory.
+
+       -d
+              Lets you define the type of documents that will be passed to the program to index or the type of document targeted by the searches.
 
    Document Indexing
-       -b FILES (-i INDEX -d DOC_TYPE)
-              Upload documents (use with -i and -d options for faster searches)
+       -b FILES
+              Allows you to declare that you want to index documents.
 
    Searching Options
        -f FIELD(S)
-              Used for selecting the searching field (or fields, in case of -s, 
-              -S or default query)
+              Allows you to identify the field or fields to be used. (Required in searches)
+
+       -p PATTERN
+              Allows you to identify the pattern to be used in the searches. If this option is used, only one search will be performed. Otherwise the interpreter mode is started, where successive patterns can be provided.
+
         
    Query Type Selection
        -c CUTOFF
-              Common terms query. Gives more preference to uncommon words and 
-              uses a CUTOFF frequency.
+              Lets you use the "common_terms" query from the Elasticsearch API, where less common words are preferred. To do this, it is necessary to pass a value CUTOFF, which is the frequency that a particular word must be present in documents to be or not considered common.
         
        -e
-              Used for matching exact phrases or word proximity matches. Uses 
-              the match_phrase Elasticsearch API query.
+              Lets you use an "match_phrase" query from the Elasticsearch API, used to search for exact phrases or similar words.
 
        -S
-              Uses the query_string Elasticsearch API query, allowing you to
-              specify AND|OR|NOT conditions and multi-field search within a si-
-              ngle query string. 
+              Lets you use the "query_string" query of the Elasticsearch API, which makes it possible to specify, for example, conditional operators such as AND | OR | NOT. Searches in multiple fields are also supported.
 
        -s
-              Uses the simple_query_string Elasticsearch API query, allowing op-
-              erators as ['|','+','-']. Discards invalid parts of the query.
+              Allows you to use the "simple_query_string" query of the Elasticsearch API that allows for a more robust syntax. Operators such as ['|', '+', '-'] can be used. Invalid parts of the query are discarded.
        
        <No query type>
-              If none of the above flags is used, depending on the number of se-
-              lected fields, default match or multi_match query is used.
+              When you want to do a search, the absence of the flag that defines the type of the query means that the default "match" query of the API should be used, if only one field is defined for the search. If it is specified more than 1 field, its used the "multi_match" query. 
 
    Output Control
        -n ITEMS
