@@ -1,11 +1,16 @@
-#!/usr/bin/python3
-#----------------------------------------------------------------
-
 import json
-from elasticsearch import Elasticsearch
-import os, sys, re
+import re, sys, subprocess
 
 def load_documents(idx, dtype, files, es):
+    """Função premite indexar um conjuto de documentos json num elasticsearch
+    cluster/node. 
+    
+    Args:
+        idx: indice a utilizar na indexação
+        dtype: tipo do documento
+        files: conjunto de documentos a inserir
+        es: instância do Elasticsearch
+    """
 
     # Create an index (ignore if it already exists)
     es.indices.create(index = idx, ignore = 400)
@@ -15,91 +20,50 @@ def load_documents(idx, dtype, files, es):
             data = json.load(f)
             es.index(index = idx, doc_type = dtype, body = data)
 
-
-def match(content, field, exact, idx, dtype, es):
-
-    if exact:
-        query = "match_phrase"
-    else:
-        query = "match"
-
-    return es.search(index = idx, doc_type = dtype, body = {
-        "query": {
-            query: {
-                field: content
-            }
-        }
-    })
-
-def match_as_you_type(prefix, curr_word, field, idx, dtype, es):
-    lst = []
-
-    res = es.search(index = idx, doc_type = dtype, body = {
-        "query": {
-            "match_phrase_prefix": {
-                field : {
-                    "query" : prefix,
-                    "max_expansions" : 1000
-                }
-            }
-        },
-        "highlight" : {
-            "fields" : {
-               field : {}
-            }
-        }
-    })  
+def redirect_output(line):
+    """Função que permite criar um file descriptor para o possível ficheiro
+    definido na linha de input.
     
-    for doc in res['hits']['hits']:
-        match = doc['highlight'][field]
-        #Condição para o caso em que já se escreveu a palavra que fez match completa
-        if( curr_word == "" ):
-            #print(match[0])
-            match = re.sub(r'.*<em>(.*)</em>\s*(.*)', r'\2', match[0])
-        else:
-            match = re.sub(r'.*<em>(.*)</em>(.*)', r'\1\2', match[0])
-        lst.append(match)
+    Args:
+        line: linha onde se encontra definido (ou não) o ficheiro de saída
 
-    return lst
+    Returns:
+        string: linha de input sem o redirecionamento para o ficheiro
+        fd: file descriptor para o redirecionamento futuro
+    """
+    output = re.search(r'(.*)\s+>\s+(.*)',line)
+    if output:
+        output_path = output.group(2)
+        try:
+            f = open(output_path, 'w')
+            return output.group(1) ,f
+        except FileNotFoundError:
+            print("Ficheiro de saída inválido!! Redirecionando para o stdout ...")
+            return output.group(1), sys.stdout
+    else:
+        return line, sys.stdout
 
-def multi_match(content, fields, idx, dtype, es):
-    return es.search(index = idx, doc_type = dtype, body = {
-        "query": {
-            "multi_match" : {
-                "query" : content,
-                "fields" : fields
-            }
-        }
-    })
+def print_manual():
+    """Função que faz uma invocação ao comando "more" da bash e que premite imprimir
+    o manual do programa.
+    """
+    return subprocess.call(['more','manual.txt'])
 
-def common_terms(content, field, idx, dtype, cutoff_frequency, es):
-    return es.search(index = idx, doc_type = dtype, body = {
-        "query": {
-            "common" : {
-                field : {
-                    "query": content,
-                    "cutoff_frequency": cutoff_frequency
-                }
-            }
-        }
-    })
+def pretty_print(hits, times, print_to):
+    """Função que imprime com um template específico um determinado número
+    de documentos utilizando um file descriptor específico.
+    
+    Args:
+        hits: conjunto de documento que fizeram match com uma determinada query
+        times: limite para o número de documentos a imprimir
+        print_to: file descriptor de saída
+    """
 
-def query_string(content, fields, idx, dtype, es):
-    return es.search(index = idx, doc_type = dtype, body = {
-        "query": {
-            "query_string" : {
-                "query" : content,
-                "fields" : fields
-            }
-        }
-    })
-
-def simple_query_string(content, fields, idx, dtype, es):
-    return es.search(index = idx, doc_type = dtype, body = {
-        "query": {
-            "simple_query_string" : {
-                "query" : content,
-                "fields" : fields
-            }
-        }
-    })
+    for doc in hits:
+        if times > 0:
+            print("=" * 79, file=print_to)
+            json_file = json.dumps(doc['_source'])
+            json_f = json.loads(json_file)
+            for field, content in json_f.items():
+                print(field.upper() + ": " + content, file=print_to)
+            times -= 1
