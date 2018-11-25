@@ -150,7 +150,7 @@ def multi_match(content, fields, idx, dtype):
 
 def common_terms(content, field, idx, dtype, cutoff_frequency):
     """Função que implementa a query common_terms da api full text queries do
-    elasticsearch. Faz match dando maior relevância a palavras mais comuns.
+    elasticsearch. Faz match dando maior relevância a palavras menos comuns.
 
     Args:
         content: padrão a aplicar no field
