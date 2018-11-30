@@ -35,7 +35,7 @@ def print_manual():
     """Função que faz uma invocação ao comando "more" da bash e que premite imprimir
     o manual do programa.
     """
-    return subprocess.call(['more', 'manual.txt'])
+    return subprocess.call(['more', '/usr/bin/manual.txt'])
 
 def pretty_print(hits, times, print_to):
     """Função que imprime com um template específico um determinado número

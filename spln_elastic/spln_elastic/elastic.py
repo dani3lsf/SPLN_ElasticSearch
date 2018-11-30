@@ -18,7 +18,7 @@ def init():
     global ES
 
     if os.path.isfile("./credentials.json"):
-        credentials_json = open('spln_elastic/data/credentials.json', 'r')
+        credentials_json = open('~/.elastic/credentials.json', 'r')
         credentials = json.load(credentials_json)
         credentials_json.close()
 

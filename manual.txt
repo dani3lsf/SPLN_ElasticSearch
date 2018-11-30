@@ -1,16 +1,13 @@
 [filter]                      General Commands Manual                     
 
 NAME
-       filter - full text document search
+       elastic - full text search
 
 DESCRIPTION
 
-       Filter allows you to load documents into an Elasticsearch cluster/node
-       with a given index and document type. If no index or document type is 
-       specified, default values are used.
+        Filter that allows you to load documents into an Elasticsearch cluster/node with a given index and document type. If no index or document type is specified, default values are used.
        
-       As its main use case, allows full text searches, retrieving documents  
-       based on a given query. For that purpose, Elasticsearch API is used.
+        As its main use case, allows full text searches, retrieving documents based on a given query. For that purpose, Elasticsearch API is used.
 
 OPTIONS
    Generic Program Options
@@ -54,4 +51,3 @@ OPTIONS
    Output Control
        -n ITEMS
               Used to limit the number of documents to retrieve.
-          

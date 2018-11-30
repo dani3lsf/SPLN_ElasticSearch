@@ -1,3 +1,4 @@
 
 filter:
-	sudo cp filter.py /usr/bin/
+	sudo cp elastic /usr/bin/
+	sudo cp manual.txt /usr/bin
